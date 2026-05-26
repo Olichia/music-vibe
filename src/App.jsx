@@ -210,7 +210,7 @@ export default function App() {
   };
 
   // --- Spotify 匯出相關功能 ---
-  const handleSpotifyLogin = () => {
+ const handleSpotifyLogin = () => {
   const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
 
   const redirectUri = window.location.origin + "/";
@@ -228,13 +228,132 @@ export default function App() {
     `&scope=${encodeURIComponent(scopes)}`;
 };
 
-  const handleDirectExport = () => {
-    setIsExporting(true);
-    setTimeout(() => { 
-      setIsExporting(false); 
-      setExportSuccess(true); 
-    }, 2000);
-  };
+ const handleDirectExport = async () => {
+  setIsExporting(true);
+  setExportSuccess(false);
+
+  const targetPlaylist = selectedRecord ? selectedRecord.playlist : playlist;
+
+  if (!targetPlaylist || !targetPlaylist.songs || targetPlaylist.songs.length === 0) {
+    alert("目前沒有可匯出的歌單，請先生成歌單。");
+    setIsExporting(false);
+    return;
+  }
+
+  if (!spotifyToken) {
+    alert("請先連線 Spotify 帳號。");
+    setIsExporting(false);
+    return;
+  }
+
+  try {
+    // 1. 取得目前登入者資料
+    const userRes = await fetch("https://api.spotify.com/v1/me", {
+      headers: {
+        Authorization: `Bearer ${spotifyToken}`,
+      },
+    });
+
+    const userData = await userRes.json();
+
+    if (!userRes.ok) {
+      throw new Error(userData.error?.message || "無法取得 Spotify 使用者資料");
+    }
+
+    const userId = userData.id;
+
+    // 2. 建立新的 Spotify 播放清單
+    const createPlaylistRes = await fetch(
+      `https://api.spotify.com/v1/users/${userId}/playlists`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${spotifyToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: `🎧 ${targetPlaylist.theme || "Music Vibe 推薦歌單"}`,
+          description: targetPlaylist.reasoning || "由 Music Vibe AI 生成的情境歌單",
+          public: false,
+        }),
+      }
+    );
+
+    const playlistData = await createPlaylistRes.json();
+
+    if (!createPlaylistRes.ok) {
+      throw new Error(playlistData.error?.message || "建立 Spotify 歌單失敗");
+    }
+
+    const spotifyPlaylistId = playlistData.id;
+
+    // 3. 搜尋每一首歌，取得 Spotify track URI
+    const trackUris = [];
+
+    for (const song of targetPlaylist.songs) {
+      const query = encodeURIComponent(`track:${song.title} artist:${song.artist}`);
+
+      const searchRes = await fetch(
+        `https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`,
+        {
+          headers: {
+            Authorization: `Bearer ${spotifyToken}`,
+          },
+        }
+      );
+
+      const searchData = await searchRes.json();
+
+      if (!searchRes.ok) {
+        console.warn("搜尋歌曲失敗：", song, searchData);
+        continue;
+      }
+
+      const foundTrack = searchData.tracks?.items?.[0];
+
+      if (foundTrack?.uri) {
+        trackUris.push(foundTrack.uri);
+      } else {
+        console.warn("Spotify 找不到歌曲：", song.title, song.artist);
+      }
+    }
+
+    if (trackUris.length === 0) {
+      throw new Error("Spotify 找不到這份歌單中的歌曲，請改用複製歌單文字。");
+    }
+
+    // 4. 把歌曲加入剛建立的 Spotify 歌單
+    const addTracksRes = await fetch(
+      `https://api.spotify.com/v1/playlists/${spotifyPlaylistId}/tracks`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${spotifyToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          uris: trackUris,
+        }),
+      }
+    );
+
+    const addTracksData = await addTracksRes.json();
+
+    if (!addTracksRes.ok) {
+      throw new Error(addTracksData.error?.message || "加入歌曲到 Spotify 歌單失敗");
+    }
+
+    setExportSuccess(true);
+  } catch (err) {
+    console.error("Spotify 匯出錯誤：", err);
+    alert(
+      `匯出失敗：${err.message}\n\n如果是授權過期，請重新點「連線至 Spotify 帳號」。`
+    );
+    setSpotifyToken(null);
+  } finally {
+    setIsExporting(false);
+  }
+};
 
   const copyTracklistToClipboard = () => {
     const targetPlaylist = selectedRecord ? selectedRecord.playlist : playlist;
