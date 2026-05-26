@@ -299,6 +299,18 @@ if (code) {
   };
 
  const handleDirectExport = async () => {
+  const readSpotifyResponse = async (response) => {
+    const text = await response.text();
+
+    if (!text) return {};
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(`Spotify 回傳非 JSON 內容：${text}`);
+    }
+  };
+
   setIsExporting(true);
   setExportSuccess(false);
 
@@ -324,7 +336,7 @@ if (code) {
       },
     });
 
-    const userData = await userRes.json();
+    const userData = await readSpotifyResponse(userRes);
 
     if (!userRes.ok) {
       throw new Error(userData.error?.message || "無法取得 Spotify 使用者資料");
@@ -349,7 +361,7 @@ if (code) {
       }
     );
 
-    const playlistData = await createPlaylistRes.json();
+    const playlistData = await readSpotifyResponse(createPlaylistRes);
 
     if (!createPlaylistRes.ok) {
       throw new Error(playlistData.error?.message || "建立 Spotify 歌單失敗");
@@ -361,7 +373,7 @@ if (code) {
     const trackUris = [];
 
     for (const song of targetPlaylist.songs) {
-      const query = encodeURIComponent(`track:${song.title} artist:${song.artist}`);
+      const query = encodeURIComponent(`${song.title} ${song.artist}`);
 
       const searchRes = await fetch(
         `https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`,
@@ -372,7 +384,7 @@ if (code) {
         }
       );
 
-      const searchData = await searchRes.json();
+      const searchData = await readSpotifyResponse(searchRes);
 
       if (!searchRes.ok) {
         console.warn("搜尋歌曲失敗：", song, searchData);
@@ -407,7 +419,7 @@ if (code) {
       }
     );
 
-    const addTracksData = await addTracksRes.json();
+    const addTracksData = await readSpotifyResponse(addTracksRes);
 
     if (!addTracksRes.ok) {
       throw new Error(addTracksData.error?.message || "加入歌曲到 Spotify 歌單失敗");
