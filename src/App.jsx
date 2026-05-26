@@ -381,7 +381,7 @@ export default function App() {
     setIsChatTyping(true);
 
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     const conversationHistory = newMessages.slice(-4).map(m => `${m.sender === 'user' ? '粉絲' : selectedArtist.name}: ${m.text}`).join('\n');
     
     const promptText = `你現在是音樂人「${selectedArtist.fullname}」。請完全沉浸角色，絕不說自己是AI。風格：${selectedArtist.style}。對話紀錄：\n${conversationHistory}\n請以「${selectedArtist.name}」的口吻回覆最後一句話。約30~80字，善用Emoji。`;
