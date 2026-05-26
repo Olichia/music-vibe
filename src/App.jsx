@@ -54,6 +54,54 @@ const DEFAULT_ARTISTS = [
 ];
 
 export default function App() {
+    const generateRandomString = (length) => {
+    const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    const values = crypto.getRandomValues(new Uint8Array(length));
+    return values.reduce((acc, x) => acc + possible[x % possible.length], "");
+  };
+
+  const sha256 = async (plain) => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(plain);
+    return window.crypto.subtle.digest("SHA-256", data);
+  };
+
+  const base64encode = (input) => {
+    return btoa(String.fromCharCode(...new Uint8Array(input)))
+      .replace(/=/g, "")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_");
+  };
+
+  const getSpotifyAccessToken = async (code) => {
+    const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+    const redirectUri = window.location.origin + "/";
+    const codeVerifier = localStorage.getItem("spotify_code_verifier");
+
+    const body = new URLSearchParams({
+      client_id: clientId,
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: codeVerifier,
+    });
+
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error_description || data.error || "Spotify token exchange failed");
+    }
+
+    return data.access_token;
+  };
   // --- 狀態管理 ---
   const [activeTab, setActiveTab] = useState('generator'); 
   
@@ -109,12 +157,20 @@ export default function App() {
       const savedArtists = localStorage.getItem('custom_artists');
       if (savedArtists) setCustomArtists(JSON.parse(savedArtists));
 
-      const hash = window.location.hash;
-      if (hash.includes('access_token')) {
-        const token = hash.split('&')[0].split('=')[1];
-        setSpotifyToken(token);
-        window.history.pushState("", document.title, window.location.pathname);
-      }
+     const params = new URLSearchParams(window.location.search);
+const code = params.get("code");
+
+if (code) {
+  getSpotifyAccessToken(code)
+    .then((token) => {
+      setSpotifyToken(token);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    })
+    .catch((err) => {
+      console.error("Spotify 登入失敗：", err);
+      alert("Spotify 登入失敗：" + err.message);
+    });
+}
     } catch (e) {
       console.error("Local storage error:", e);
     }
@@ -210,23 +266,37 @@ export default function App() {
   };
 
   // --- Spotify 匯出相關功能 ---
- const handleSpotifyLogin = () => {
-  const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+   const handleSpotifyLogin = async () => {
+    const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+    const redirectUri = window.location.origin + "/";
 
-  const redirectUri = window.location.origin + "/";
+    if (!clientId) {
+      alert("找不到 Spotify Client ID，請檢查 Vercel Environment Variables 是否有 VITE_SPOTIFY_CLIENT_ID。");
+      return;
+    }
 
-  const scopes = [
-    "playlist-modify-public",
-    "playlist-modify-private"
-  ].join(" ");
+    const codeVerifier = generateRandomString(64);
+    const hashed = await sha256(codeVerifier);
+    const codeChallenge = base64encode(hashed);
 
-  window.location.href =
-    `https://accounts.spotify.com/authorize` +
-    `?client_id=${clientId}` +
-    `&response_type=token` +
-    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-    `&scope=${encodeURIComponent(scopes)}`;
-};
+    localStorage.setItem("spotify_code_verifier", codeVerifier);
+
+    const scopes = [
+      "playlist-modify-public",
+      "playlist-modify-private",
+    ].join(" ");
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      response_type: "code",
+      redirect_uri: redirectUri,
+      scope: scopes,
+      code_challenge_method: "S256",
+      code_challenge: codeChallenge,
+    });
+
+    window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
+  };
 
  const handleDirectExport = async () => {
   setIsExporting(true);
