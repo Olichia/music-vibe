@@ -464,19 +464,20 @@ if (code) {
     const targetPlaylist = selectedRecord ? selectedRecord.playlist : playlist;
     if (!targetPlaylist) return;
     
-    let textToCopy = `🎧 ${targetPlaylist.theme}
-
-`;
+    let textToCopy = `🎧 ${targetPlaylist.theme}\n\n`;
     targetPlaylist.songs.forEach((song) => { 
-      textToCopy += `${song.artist} - ${song.title}
-`; 
+      textToCopy += `${song.artist} - ${song.title}\n`; 
     });
+
+    const copyAndOpenImportTool = () => {
+  copyTracklistToClipboard();
+  window.open("https://www.tunemymusic.com/transfer/text-file-to-spotify", "_blank");
+};
     
     const textArea = document.createElement("textarea"); 
     textArea.value = textToCopy; 
     document.body.appendChild(textArea); 
     textArea.select();
-
     try { 
       document.execCommand('copy'); 
       setCopySuccess(true); 
@@ -484,13 +485,7 @@ if (code) {
     } catch (err) { 
       alert('複製失敗，請手動圈選複製喔！'); 
     }
-
     document.body.removeChild(textArea);
-  };
-
-  const copyAndOpenImportTool = () => {
-    copyTracklistToClipboard();
-    window.open("https://www.tunemymusic.com/transfer/text-file-to-spotify", "_blank");
   };
 
   // --- 歌單生成 API ---
@@ -719,36 +714,12 @@ if (code) {
             ) : (
               <>
                 <p className="text-slate-600 text-sm leading-relaxed mb-6">
-                  {spotifyToken ? "已獲得 Spotify 授權；若直接建立受限，可使用下方匯入工具。" : "可複製歌單文字並前往匯入工具，將歌單帶進 Spotify。"}
+                  {spotifyToken ? "已獲得 Spotify 授權！可以直接建立。" : "只要兩步驟，就能把這份專屬歌單送進 Spotify 裡！"}
                 </p>
                 {spotifyToken ? (
-                  <div className="space-y-3">
-                    <button
-                      onClick={copyAndOpenImportTool}
-                      className={`w-full py-3 rounded-lg font-bold transition-all flex justify-center items-center ${
-                        copySuccess ? 'bg-slate-700 text-white' : 'bg-slate-800 text-white hover:bg-slate-900 shadow-md'
-                      }`}
-                    >
-                      {copySuccess ? '✅ 已複製！請在匯入工具貼上' : <><CopyIcon /> 複製並前往 Spotify 匯入工具</>}
-                    </button>
-
-                    <button
-                      onClick={handleDirectExport}
-                      disabled={isExporting}
-                      className={`w-full py-2 rounded-lg font-medium text-sm transition-all flex justify-center items-center ${
-                        isExporting ? 'bg-green-300 text-white cursor-not-allowed' : 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
-                      }`}
-                    >
-                      {isExporting ? (
-                        <>
-                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
-                          測試直接建立中...
-                        </>
-                      ) : (
-                        '實驗功能：直接建立 Spotify 歌單'
-                      )}
-                    </button>
-                  </div>
+                   <button onClick={handleDirectExport} disabled={isExporting} className={`w-full py-3 rounded-lg font-bold text-white transition-all flex justify-center items-center ${isExporting ? 'bg-green-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 shadow-md'}`}>
+                     {isExporting ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>建立歌單中...</> : '✨ 一鍵匯入歌單'}
+                   </button>
                 ) : (
                   <div className="space-y-4">
                     <button onClick={handleSpotifyLogin} className="w-full py-3 rounded-lg font-bold text-slate-800 bg-green-400 hover:bg-green-500 transition-all shadow-md">
@@ -759,14 +730,9 @@ if (code) {
                       <span className="flex-shrink-0 mx-4 text-slate-400 text-xs font-medium uppercase">或使用複製替代方案</span>
                       <div className="flex-grow border-t border-slate-200"></div>
                     </div>
-                    <button
-                      onClick={copyAndOpenImportTool}
-                      className={`w-full py-3 rounded-lg font-bold transition-all flex justify-center items-center ${
-                        copySuccess ? 'bg-slate-700 text-white' : 'bg-slate-800 text-white hover:bg-slate-900 shadow-md'
-                      }`}
-                    >
-                      {copySuccess ? '✅ 已複製！請在匯入工具貼上' : <><CopyIcon /> 複製並前往 Spotify 匯入工具</>}
-                    </button>
+                    <button onClick={copyAndOpenImportTool} className={`w-full py-3 rounded-lg font-bold transition-all flex justify-center items-center ${copySuccess ? 'bg-slate-700 text-white' : 'bg-slate-800 text-white hover:bg-slate-900 shadow-md'}`}>
+  {copySuccess ? '✅ 已複製！請在匯入工具貼上' : <><CopyIcon /> 複製並前往 Spotify 匯入工具</>}
+</button>
                   </div>
                 )}
               </>
