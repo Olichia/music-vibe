@@ -299,7 +299,7 @@ if (code) {
   };
 
  const handleDirectExport = async () => {
-  const readSpotifyResponse = async (response) => {
+  const readSpotifyResponse = async (response, stepName) => {
     const text = await response.text();
 
     if (!text) return {};
@@ -307,8 +307,14 @@ if (code) {
     try {
       return JSON.parse(text);
     } catch {
-      throw new Error(`Spotify 回傳非 JSON 內容：${text}`);
+      throw new Error(`${stepName}：Spotify 回傳非 JSON 內容：${text}`);
     }
+  };
+
+  const getSpotifyErrorMessage = (data, fallback) => {
+    if (data?.error?.message) return data.error.message;
+    if (typeof data?.error === "string") return data.error;
+    return fallback;
   };
 
   setIsExporting(true);
@@ -336,10 +342,12 @@ if (code) {
       },
     });
 
-    const userData = await readSpotifyResponse(userRes);
+    const userData = await readSpotifyResponse(userRes, "取得使用者資料");
 
     if (!userRes.ok) {
-      throw new Error(userData.error?.message || "無法取得 Spotify 使用者資料");
+      throw new Error(
+        `取得使用者資料失敗：${userRes.status} ${getSpotifyErrorMessage(userData, userRes.statusText)}`
+      );
     }
 
     const userId = userData.id;
@@ -361,10 +369,15 @@ if (code) {
       }
     );
 
-    const playlistData = await readSpotifyResponse(createPlaylistRes);
+    const playlistData = await readSpotifyResponse(createPlaylistRes, "建立 Spotify 歌單");
 
     if (!createPlaylistRes.ok) {
-      throw new Error(playlistData.error?.message || "建立 Spotify 歌單失敗");
+      throw new Error(
+        `建立 Spotify 歌單失敗：${createPlaylistRes.status} ${getSpotifyErrorMessage(
+          playlistData,
+          createPlaylistRes.statusText
+        )}`
+      );
     }
 
     const spotifyPlaylistId = playlistData.id;
@@ -384,11 +397,15 @@ if (code) {
         }
       );
 
-      const searchData = await readSpotifyResponse(searchRes);
+      const searchData = await readSpotifyResponse(searchRes, `搜尋歌曲：${song.title}`);
 
       if (!searchRes.ok) {
-        console.warn("搜尋歌曲失敗：", song, searchData);
-        continue;
+        throw new Error(
+          `搜尋 Spotify 歌曲失敗：${searchRes.status} ${getSpotifyErrorMessage(
+            searchData,
+            searchRes.statusText
+          )}`
+        );
       }
 
       const foundTrack = searchData.tracks?.items?.[0];
@@ -419,10 +436,15 @@ if (code) {
       }
     );
 
-    const addTracksData = await readSpotifyResponse(addTracksRes);
+    const addTracksData = await readSpotifyResponse(addTracksRes, "加入歌曲到 Spotify 歌單");
 
     if (!addTracksRes.ok) {
-      throw new Error(addTracksData.error?.message || "加入歌曲到 Spotify 歌單失敗");
+      throw new Error(
+        `加入歌曲到 Spotify 歌單失敗：${addTracksRes.status} ${getSpotifyErrorMessage(
+          addTracksData,
+          addTracksRes.statusText
+        )}`
+      );
     }
 
     setExportSuccess(true);
