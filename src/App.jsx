@@ -286,14 +286,15 @@ if (code) {
       "playlist-modify-private",
     ].join(" ");
 
-    const params = new URLSearchParams({
-      client_id: clientId,
-      response_type: "code",
-      redirect_uri: redirectUri,
-      scope: scopes,
-      code_challenge_method: "S256",
-      code_challenge: codeChallenge,
-    });
+   const params = new URLSearchParams({
+  client_id: clientId,
+  response_type: "code",
+  redirect_uri: redirectUri,
+  scope: scopes,
+  code_challenge_method: "S256",
+  code_challenge: codeChallenge,
+  show_dialog: "true",
+});
 
     window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
   };
@@ -361,11 +362,11 @@ if (code) {
           Authorization: `Bearer ${spotifyToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name: `🎧 ${targetPlaylist.theme || "Music Vibe 推薦歌單"}`,
-          description: targetPlaylist.reasoning || "由 Music Vibe AI 生成的情境歌單",
-          public: false,
-        }),
+       body: JSON.stringify({
+  name: `🎧 ${targetPlaylist.theme || "Music Vibe 推薦歌單"}`,
+  description: targetPlaylist.reasoning || "由 Music Vibe AI 生成的情境歌單",
+  public: true,
+}),
       }
     );
 
